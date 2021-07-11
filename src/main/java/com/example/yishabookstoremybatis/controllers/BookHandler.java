@@ -4,6 +4,7 @@ import com.example.yishabookstoremybatis.entity.Book;
 import com.example.yishabookstoremybatis.entity.User;
 import com.example.yishabookstoremybatis.mapper.BookMapper;
 
+import com.example.yishabookstoremybatis.service.Bookservice;
 import com.fasterxml.jackson.databind.util.JSONPObject;
 import org.apache.ibatis.annotations.Insert;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,106 +24,51 @@ import java.util.concurrent.TimeUnit;
 @RequestMapping("/book")
 public class BookHandler {
 
-    @Autowired
-    private StringRedisTemplate stringRedisTemplate;
 
     @Autowired
-    private BookMapper bookMapper;
+    private Bookservice bookservice;
 
 
     //显示所有书籍
     @GetMapping("findAllBooks")
     public List<Book> findAllBooks(){
-        return bookMapper.getAllBooks();
+        return bookservice.findAllBooks();
     }
 
     //是否存在用户
     @GetMapping("finCountUser")
     public int finCountUser(){
-       return bookMapper.getCountuser();
+       return bookservice.finCountUser();
     }
 
     //获取某个用户书架,参数是token，判断一下是否为真
     @PostMapping("findoneuserbooks")
     public List<Book> findoneuserbooks(@RequestBody Map<String,String> username){
-        String token = username.get("username");
-        String admin = "user" + token.substring(32,token.length());
-        String value = stringRedisTemplate.opsForValue().get(admin);
-        if(value.equals(token)){
-            return bookMapper.getuserbooks(token.substring(32,token.length()));
-        }else{
-            List<Book> listbook = new ArrayList<>();
-            Book book = new Book();
-            book.setBookid(-1);
-            book.setBookname("-1");
-            book.setBooksummary("-1");
-            listbook.add(book);
-            return listbook;
-        }
+       return bookservice.findoneuserbooks(username);
     }
 
     //将书本添加到书架中
     @PostMapping("postbooktobooks")
     public int postupbookdata(@RequestBody Map<String,String> data){
-        String token = data.get("token");
-        String admin = "user" + token.substring(32,token.length());
-        String value = stringRedisTemplate.opsForValue().get(admin);
-        if(value.equals(token)){
-            bookMapper.upbook(token.substring(32,token.length()),data.get("bookname"));
-            return 1;
-        }
-        return 0;
+        return bookservice.postupbookdata(data);
     }
 
     //在书架中去除书籍
     @PostMapping("deleteuserbook")
     public void deleteuserbook(@RequestBody Map<String,String> data){
-        String token = data.get("token");
-        String admin = "user" + token.substring(32,token.length());
-        String value = stringRedisTemplate.opsForValue().get(admin);
-        if(value.equals(token)){
-            bookMapper.updeletebook(token.substring(32,token.length()),data.get("bookname"));
-        }
-
+        bookservice.deleteuserbook(data);
     }
 
     //注册
     @PostMapping("ishaveuser")
     public Object selectishaveuser(@RequestBody Map<String,String> data){
-        Map<String,Object> jsonObject = new HashMap<>();
-        User user  = bookMapper.ishaveuser(data.get("username"));
-        //已经有用户注册了
-        if (user != null) {
-            jsonObject.put("respcode", 0);
-        }else {
-            bookMapper.insertuser(data.get("username"),data.get("userpassword"));
-            jsonObject.put("respcode", 1);
-        }
-        // 向前端返回相应的json数据
-        return jsonObject;
+        return bookservice.selectishaveuser(data);
     }
 
     //登录
     @PostMapping("userlogin")
     public Object userlogin(@RequestBody Map<String,String> data){
-
-        Map<String,Object> jsonObject = new HashMap<>();
-        User user  = bookMapper.userlogin(data.get("username"),data.get("userpassword"));
-        //有此账号
-        if (user != null) {
-            // 使用UUID作为token值
-            String uuid = UUID.randomUUID().toString().replaceAll("-", "");
-            // 在uuid后拼接管理员id组成最后的token值（添加id是为了方便后续验证）
-            String token = uuid + user.getUsername();
-            // 将用户的ID信息存入redis缓存，并设置两小时的过期时间
-            stringRedisTemplate.opsForValue().set("user"+user.getUsername(), token, 7200, TimeUnit.SECONDS);
-            jsonObject.put("respcode", 1);
-            jsonObject.put("token", token);
-        }else {
-            jsonObject.put("respcode", 0);
-        }
-        // 向前端返回相应的json数据
-        return jsonObject;
+        return bookservice.userlogin(data);
     }
 
 
