@@ -1,25 +1,20 @@
 package com.example.yishabookstoremybatis.controllers;
 
-import com.example.yishabookstoremybatis.entity.Book;
-import com.example.yishabookstoremybatis.entity.User;
-import com.example.yishabookstoremybatis.mapper.BookMapper;
+import com.example.yishabookstoremybatis.entity.Bookshelf;
+import com.example.yishabookstoremybatis.entity.Searchbookmodel;
 
 import com.example.yishabookstoremybatis.service.Bookservice;
-import com.fasterxml.jackson.databind.util.JSONPObject;
-import org.apache.ibatis.annotations.Insert;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
-import org.springframework.context.annotation.Bean;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
-import javax.servlet.ServletInputStream;
-import javax.servlet.http.HttpServletRequest;
-import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 //默认返回 json数据 controller 以及 responsebody合体
+//用于标注控制层组件(如struts中的action)，
+//        表示这是个控制器bean,并且是将函数的返回值直接填入HTTP响应体中,是REST风格的控制器；它是@Controller和@ResponseBody的合集。
+
+//RequestMapping是一个用来处理请求地址映射的注解；
+//        提供路由信息，负责URL到Controller中的具体函数的映射，可用于类或方法上。用于类上，表示类中的所有响应请求的方法都是以该地址作为父路径。
 @RestController
 @RequestMapping("/book")
 public class BookHandler {
@@ -28,11 +23,28 @@ public class BookHandler {
     @Autowired
     private Bookservice bookservice;
 
+    //通过搜索查询书籍
+    @PostMapping("searchbook")
+    public List<Searchbookmodel> searchbook(@RequestBody Map<String,String> map) throws Exception {
+        return bookservice.searchbookservice(map.get("name"));
+    };
 
-    //显示所有书籍
-    @GetMapping("findAllBooks")
-    public List<Book> findAllBooks(){
-        return bookservice.findAllBooks();
+    //获取章节小说
+    @PostMapping("readbook")
+    public String readbookControllers(@RequestBody Map<String,String> map) throws Exception {
+        return bookservice.readbookservice(map.get("url"));
+    }
+
+    //下一章
+    @PostMapping("havenextpage")
+    public Map<String,String> nextpageControllers(@RequestBody Map<String,String> map) throws Exception {
+        return bookservice.nextpageservice(map.get("url"),map.get("username"),map.get("bookname"));
+    }
+
+    //上一章
+    @PostMapping("bakconepage")
+    public Map<String,String> bakconepageControllers(@RequestBody Map<String,String> map) throws Exception {
+        return bookservice.bakconepageservice(map.get("url"),map.get("username"),map.get("bookname"));
     }
 
     //是否存在用户
@@ -43,13 +55,13 @@ public class BookHandler {
 
     //获取某个用户书架,参数是token，判断一下是否为真
     @PostMapping("findoneuserbooks")
-    public List<Book> findoneuserbooks(@RequestBody Map<String,String> username){
+    public List<Bookshelf> findoneuserbooks(@RequestBody Map<String,String> username){
        return bookservice.findoneuserbooks(username);
     }
 
     //将书本添加到书架中
     @PostMapping("postbooktobooks")
-    public int postupbookdata(@RequestBody Map<String,String> data){
+    public int postupbookdata(@RequestBody Map<String,String> data) throws Exception {
         return bookservice.postupbookdata(data);
     }
 
@@ -71,30 +83,13 @@ public class BookHandler {
         return bookservice.userlogin(data);
     }
 
+    //注销账号
+    @PostMapping("deleteuser")
+    public void deleteUserController(@RequestBody Map<String,String> data){
+        bookservice.deleteUserService(data);
+    }
 
 
-
-//    public void postupbookdata(HttpServletRequest req){
-//        ServletInputStream is;
-//        try {
-//            is = req.getInputStream();
-//            int nRead = 1;
-//            int nTotalRead = 0;
-//            byte[] bytes = new byte[10240];
-//            while (nRead > 0) {
-//                nRead = is.read(bytes, nTotalRead, bytes.length - nTotalRead);
-//                if (nRead > 0)
-//                    nTotalRead = nTotalRead + nRead;
-//            }
-//            String str = new String(bytes, 0, nTotalRead, "utf-8");
-//            System.out.println("str"+str);
-//
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//
-//        }
-//
-//    }
 
 
 }

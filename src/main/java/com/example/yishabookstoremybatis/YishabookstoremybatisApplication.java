@@ -10,7 +10,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class YishabookstoremybatisApplication {
     public static void main(String[] args) {
         SpringApplication.run(YishabookstoremybatisApplication.class, args);
-
     }
 
 }

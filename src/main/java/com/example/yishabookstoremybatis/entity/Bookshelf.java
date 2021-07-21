@@ -4,6 +4,9 @@ public class Bookshelf {
     private int shelfid;
     private String username;
     private String bookname;
+    private String bookoneurl;
+    private String bookauthor;
+    private String bookcover;
 
     public int getShelfid() {
         return shelfid;
@@ -27,5 +30,29 @@ public class Bookshelf {
 
     public void setBookname(String bookname) {
         this.bookname = bookname;
+    }
+
+    public String getBookoneurl() {
+        return bookoneurl;
+    }
+
+    public void setBookoneurl(String bookoneurl) {
+        this.bookoneurl = bookoneurl;
+    }
+
+    public String getBookauthor() {
+        return bookauthor;
+    }
+
+    public void setBookauthor(String bookauthor) {
+        this.bookauthor = bookauthor;
+    }
+
+    public String getBookcover() {
+        return bookcover;
+    }
+
+    public void setBookcover(String bookcover) {
+        this.bookcover = bookcover;
     }
 }
