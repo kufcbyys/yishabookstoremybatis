@@ -1,5 +1,6 @@
 package com.example.yishabookstoremybatis.controllers;
 
+import com.example.yishabookstoremybatis.entity.Allpages;
 import com.example.yishabookstoremybatis.entity.Bookshelf;
 import com.example.yishabookstoremybatis.entity.Searchbookmodel;
 
@@ -11,10 +12,9 @@ import java.util.*;
 
 //默认返回 json数据 controller 以及 responsebody合体
 //用于标注控制层组件(如struts中的action)，
-//        表示这是个控制器bean,并且是将函数的返回值直接填入HTTP响应体中,是REST风格的控制器；它是@Controller和@ResponseBody的合集。
-
+//表示这是个控制器bean,并且是将函数的返回值直接填入HTTP响应体中,是REST风格的控制器；它是@Controller和@ResponseBody的合集。
 //RequestMapping是一个用来处理请求地址映射的注解；
-//        提供路由信息，负责URL到Controller中的具体函数的映射，可用于类或方法上。用于类上，表示类中的所有响应请求的方法都是以该地址作为父路径。
+//提供路由信息，负责URL到Controller中的具体函数的映射，可用于类或方法上。用于类上，表示类中的所有响应请求的方法都是以该地址作为父路径。
 @RestController
 @RequestMapping("/book")
 public class BookHandler {
@@ -28,6 +28,19 @@ public class BookHandler {
     public List<Searchbookmodel> searchbook(@RequestBody Map<String,String> map) throws Exception {
         return bookservice.searchbookservice(map.get("name"));
     };
+
+    //更新阅读进度
+    @PostMapping("upbookreadwhat")
+    public String upbookreadwhatControllers(@RequestBody Map<String,String> map) throws Exception {
+        return  bookservice.upbookreadwhatService(map.get("url"),map.get("username"),map.get("bookname"));
+
+    }
+
+    //获取小说所有章节
+    @PostMapping("allthepages")
+    public List<Allpages> allthepagescontrollers(@RequestBody Map<String,String> map2) throws Exception{
+        return bookservice.allthepagesService(map2.get("url2"),map2.get("bookname"));
+    }
 
     //获取章节小说
     @PostMapping("readbook")

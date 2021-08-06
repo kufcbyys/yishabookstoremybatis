@@ -1,5 +1,6 @@
 package com.example.yishabookstoremybatis.service;
 
+import com.example.yishabookstoremybatis.entity.Allpages;
 import com.example.yishabookstoremybatis.entity.Bookshelf;
 import com.example.yishabookstoremybatis.entity.Searchbookmodel;
 import com.example.yishabookstoremybatis.entity.User;
@@ -116,6 +117,12 @@ public class Bookservice {
 //        body = body.replace("&nbsp;&nbsp;&nbsp;&nbsp;", "    ");
 //        body = body.replace("<br>", "");
 //        return body.replace(" \n \n", "\r\n");
+    }
+
+    //单独更新阅读进去
+    public String upbookreadwhatService(String url,String username,String bookname) throws Exception{
+        bookMapper.updataurl(url,username,bookname);
+        return this.readbookservice(url);
     }
 
     //获取下一章
@@ -288,6 +295,42 @@ public class Bookservice {
 
     }
 
+    //获取小说所有章节
+    public List<Allpages> allthepagesService(String url2,String bookname) throws Exception {
+        List<Allpages> list = new ArrayList<>();
+        Long num = stringRedisTemplate.opsForList().size(bookname);
+        //已经存在redis里了,left存就向后拿
+        if( num != 0 || num == null){
+            for(long i=num-1;i>=0;i--){
+                Allpages allpages = new Allpages();
+                allpages.titlename = stringRedisTemplate.opsForList().index(bookname,i);
+                allpages.pagesurl = stringRedisTemplate.opsForList().index(bookname+"url",i);
+                list.add(allpages);
+            }
+            return list;
+        }
+        Connection conn = Jsoup.connect(url2)
+                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
+                .header("Accept-Encoding", "gzip, deflate, br")
+                .header("Accept-Language", "zh-CN,zh;q=0.9")
+                .header("Cache-Control", "max-age=0")
+                .header("Connection", "keep-alive")
+                .header("Host", "www.xbiquge.la")
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
+        Element elementx1 =  conn.execute().parse().body();
+        String allurl =  elementx1.select("div .bottem1").get(0).getElementsByTag("a").get(2).attr("href");
+        Element elementx2 = nextPage2(allurl);
+        Elements elementsx3 =  elementx2.select("div #list").get(0).getElementsByTag("dl").get(0).getElementsByTag("dd");
+        for(Element a : elementsx3){
+            stringRedisTemplate.opsForList().leftPush(bookname,a.getElementsByTag("a").text());
+            stringRedisTemplate.opsForList().leftPush(bookname+"url",headerurl+a.getElementsByTag("a").attr("href"));
+            Allpages allpages = new Allpages();
+            allpages.titlename = a.getElementsByTag("a").text();
+            allpages.pagesurl = headerurl+a.getElementsByTag("a").attr("href");
+           list.add(allpages);
+        }
+        return list;
+    }
 
 
 }
