@@ -1,5 +1,6 @@
 package com.example.yishabookstoremybatis.mapper;
 
+import com.example.yishabookstoremybatis.entity.BookSource;
 import com.example.yishabookstoremybatis.entity.Bookshelf;
 import com.example.yishabookstoremybatis.entity.User;
 import org.apache.ibatis.annotations.*;
@@ -52,10 +53,11 @@ public interface BookMapper {
     //删除用户以及书架里对应书籍
     @Delete("delete  from user where username=#{username}")
     void deleteUsermapper(String username);
-
     @Delete("delete  from bookshelf where username=#{username2}")
     void deleteBookshelfmapper(String username2);
 
-
+    //获取所有书源
+    @Select("select * from booksource ")
+    List<BookSource> selectBookSource();
 
 }

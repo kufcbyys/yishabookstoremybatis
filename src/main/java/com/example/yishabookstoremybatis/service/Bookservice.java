@@ -1,9 +1,6 @@
 package com.example.yishabookstoremybatis.service;
 
-import com.example.yishabookstoremybatis.entity.Allpages;
-import com.example.yishabookstoremybatis.entity.Bookshelf;
-import com.example.yishabookstoremybatis.entity.Searchbookmodel;
-import com.example.yishabookstoremybatis.entity.User;
+import com.example.yishabookstoremybatis.entity.*;
 import com.example.yishabookstoremybatis.mapper.BookMapper;
 import org.jsoup.Jsoup;
 import org.jsoup.Connection;
@@ -15,67 +12,109 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 @Service
-public class Bookservice {
+public class Bookservice{
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
-
     @Autowired
     private BookMapper bookMapper;
 
-    public static String headerurl = "https://www.xbiquge.la";
-    private static String url = "https://www.xbiquge.la/modules/article/waps.php";
+//    private static String headerurl = "https://www.xbiquge.la";
+//    private static String url = "https://www.xbiquge.la/modules/article/waps.php";
 
+    private  List<BookSource> tobooksource;
+
+    //查找书源
+    public List<BookSource> allBookSource(){
+        return bookMapper.selectBookSource();
+    }
+    //初始化书源
+    void initbooksource(){
+        if(tobooksource == null){
+            tobooksource = bookMapper.selectBookSource();
+        }
+    }
     //通过搜索查询书籍
-    public List<Searchbookmodel> searchbookservice(String name) throws Exception{
-        //String url = "https://www.xbiquge.la/modules/article/waps.php";
-        Map<String,String> map = new HashMap<>();
-        map.put("searchkey",name);
-        List<Searchbookmodel> searchbookmodels = new ArrayList<>();
-        Connection conn = Jsoup.connect(url)
-                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
-                .header("Accept-Encoding", "gzip, deflate, br")
-                .header("Accept-Language", "zh-CN,zh;q=0.9")
-                .header("Cache-Control", "max-age=0")
-                .header("Connection", "keep-alive")
-                .header("Host", "www.xbiquge.la")
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-                .data(map);
-        Element element = conn.execute().parse().body();
-        String[] booknames =  element.select("td:eq(0)").text().split("\\s+");
-        String[] booknewpages = element.select("td:eq(1)").text().split("\\s+");
-        String[] bookauthors = element.select("td:eq(2)").text().split("\\s+");
-        //获取搜索界面后每个书籍的网址
-        List<String> list = new ArrayList<>();
-        Elements a = element.select("td.even");
-        for(Element i : a){
-            Elements b = i.getElementsByTag("a");
-            for(Element k : b){
-                list.add(k.attr("href"));
-            }
+    public Vector<Vector<Searchbookmodel>> searchbookservice(String name) {
+        initbooksource();
+        Vector<Vector<Searchbookmodel>> vectors = new Vector<>();//定义一个Vector做为存储返回结果的容器；
+        final CountDownLatch countDownLatch = new CountDownLatch(tobooksource.size());
+        // 启动多个工作线程
+        for (int i = 0; i < tobooksource.size(); i++) {
+            SourceThread sourceThread = new SourceThread(countDownLatch,tobooksource.get(i).getSourceurl(),
+                    tobooksource.get(i).getHowtoparameter(),
+                    name
+                    ,tobooksource.get(i).getHowto().equals("get"),tobooksource.get(i).getSourceheaderurl());
+            sourceThread.init(vectors);
+            sourceThread.start();
         }
-        //获取每个书籍网址的第一章
-        List<String> bookonpageurl = new ArrayList<>();
-        for (int g =0;g<list.size();g++){
-            Element element1 = nextPage2(list.get(g));
-            Elements elements = element1.select("div #list");
-            for (Element q : elements){
-                Elements w = q.getElementsByTag("dd");
-                bookonpageurl.add(headerurl+w.get(0).getElementsByTag("a").attr("href"));
-            }
+        try {
+            countDownLatch.await();
+        }catch (InterruptedException interruptedException){
+            //等待修改为日志形式
+            interruptedException.printStackTrace();
         }
-        //返回前端
-        for(int i=0;i<booknames.length;i++){
-            Searchbookmodel searchbookmodel = new Searchbookmodel();
-            searchbookmodel.Searchbookname = booknames[i];
-            searchbookmodel.Searchbooknewpage = booknewpages[i];
-            searchbookmodel.Searchbookauthor = bookauthors[i];
-            searchbookmodel.Searchbookoneurl = bookonpageurl.get(i);
-            searchbookmodels.add(searchbookmodel);
-        }
-        return searchbookmodels;
+        return vectors;
+//        Map<String,String> map = new HashMap<>();
+//        map.put("searchkey",name);
+//        List<Searchbookmodel> searchbookmodels = new ArrayList<>();
+//        Element element = null;
+//        try {
+//            Connection conn = Jsoup.connect(url)
+//                    .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
+//                    .header("Accept-Encoding", "gzip, deflate, br")
+//                    .header("Accept-Language", "zh-CN,zh;q=0.9")
+//                    .header("Cache-Control", "max-age=0")
+//                    .header("Connection", "keep-alive")
+//                    .header("Host", "www.xbiquge.la")
+//                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+//                    .data(map).timeout(8000);
+//            element = conn.execute().parse().body();
+//        } catch (IOException e) {
+//            System.out.println("爬取超时或其他异常");
+//            e.printStackTrace();
+//        }
+//
+//        String[] booknames =  element.select("td:eq(0)").text().split("\\s+");
+//        String[] booknewpages = element.select("td:eq(1)").text().split("\\s+");
+//        String[] bookauthors = element.select("td:eq(2)").text().split("\\s+");
+//        //获取搜索界面后每个书籍的网址
+//        List<String> list = new ArrayList<>();
+//        Elements a = element.select("td.even");
+//        for(Element i : a){
+//            Elements b = i.getElementsByTag("a");
+//            for(Element k : b){
+//                list.add(k.attr("href"));
+//            }
+//        }
+//        //获取每个书籍网址的第一章
+//        List<String> bookonpageurl = new ArrayList<>();
+//        for (int g =0;g<list.size();g++){
+//            Element element1 = null;
+//            try {
+//                element1 = nextPage2(list.get(g));
+//            } catch (Exception e) {
+//                e.printStackTrace();
+//            }
+//            Elements elements = element1.select("div #list");
+//            for (Element q : elements){
+//                Elements w = q.getElementsByTag("dd");
+//                bookonpageurl.add(headerurl+w.get(0).getElementsByTag("a").attr("href"));
+//            }
+//        }
+//        //返回前端
+//        for(int i=0;i<booknames.length;i++){
+//            Searchbookmodel searchbookmodel = new Searchbookmodel();
+//            searchbookmodel.Searchbookname = booknames[i];
+//            searchbookmodel.Searchbooknewpage = booknewpages[i];
+//            searchbookmodel.Searchbookauthor = bookauthors[i];
+//            searchbookmodel.Searchbookoneurl = bookonpageurl.get(i);
+//            searchbookmodels.add(searchbookmodel);
+//        }
+//        return searchbookmodels;
     }
     //jsoup脚本
     private static Element nextPage2(String url) throws Exception{
@@ -162,7 +201,7 @@ public class Bookservice {
     private static String hasNext(Element element) {
         // 找到"下一章"的按钮，获取跳转的目标地址
         Elements div = element.getElementsByClass("bottem2");
-        Element a = div.get(0).getElementsByTag("a").get(3);
+            Element a = div.get(0).getElementsByTag("a").get(3);
         String href = a.attr("href");
         // 通过观察存在下一章的时候URL会以.html结尾，不存在时会跳转到首页，通过这个特点判断是否存在下一章
         return href.endsWith(".html") ? "https://www.xbiquge.la" + href : null;
@@ -287,7 +326,7 @@ public class Bookservice {
         String admin = "user" + token.substring(32,token.length());
         String value = stringRedisTemplate.opsForValue().get(admin);
         //如果用户没过期以及匹配成功
-        if(value.equals(token) && value!=null){
+        if(value!=null && value.equals(token)){
             bookMapper.deleteUsermapper(token.substring(32,token.length()));
             bookMapper.deleteBookshelfmapper(token.substring(32,token.length()));
         }
@@ -296,41 +335,40 @@ public class Bookservice {
     }
 
     //获取小说所有章节
-    public List<Allpages> allthepagesService(String url2,String bookname) throws Exception {
-        List<Allpages> list = new ArrayList<>();
-        Long num = stringRedisTemplate.opsForList().size(bookname);
-        //已经存在redis里了,left存就向后拿
-        if( num != 0 || num == null){
-            for(long i=num-1;i>=0;i--){
-                Allpages allpages = new Allpages();
-                allpages.titlename = stringRedisTemplate.opsForList().index(bookname,i);
-                allpages.pagesurl = stringRedisTemplate.opsForList().index(bookname+"url",i);
-                list.add(allpages);
-            }
-            return list;
-        }
-        Connection conn = Jsoup.connect(url2)
-                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
-                .header("Accept-Encoding", "gzip, deflate, br")
-                .header("Accept-Language", "zh-CN,zh;q=0.9")
-                .header("Cache-Control", "max-age=0")
-                .header("Connection", "keep-alive")
-                .header("Host", "www.xbiquge.la")
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
-        Element elementx1 =  conn.execute().parse().body();
-        String allurl =  elementx1.select("div .bottem1").get(0).getElementsByTag("a").get(2).attr("href");
-        Element elementx2 = nextPage2(allurl);
-        Elements elementsx3 =  elementx2.select("div #list").get(0).getElementsByTag("dl").get(0).getElementsByTag("dd");
-        for(Element a : elementsx3){
-            stringRedisTemplate.opsForList().leftPush(bookname,a.getElementsByTag("a").text());
-            stringRedisTemplate.opsForList().leftPush(bookname+"url",headerurl+a.getElementsByTag("a").attr("href"));
-            Allpages allpages = new Allpages();
-            allpages.titlename = a.getElementsByTag("a").text();
-            allpages.pagesurl = headerurl+a.getElementsByTag("a").attr("href");
-           list.add(allpages);
-        }
-        return list;
-    }
-
+//    public List<Allpages> allthepagesService(String url2,String bookname) throws Exception {
+//        List<Allpages> list = new ArrayList<>();
+//        Long num = stringRedisTemplate.opsForList().size(bookname);
+//        //已经存在redis里了,left存就向后拿
+//        if( num != 0 || num == null){
+//            for(long i=num-1;i>=0;i--){
+//                Allpages allpages = new Allpages();
+//                allpages.titlename = stringRedisTemplate.opsForList().index(bookname,i);
+//                allpages.pagesurl = stringRedisTemplate.opsForList().index(bookname+"url",i);
+//                list.add(allpages);
+//            }
+//            return list;
+//        }
+//        Connection conn = Jsoup.connect(url2)
+//                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
+//                .header("Accept-Encoding", "gzip, deflate, br")
+//                .header("Accept-Language", "zh-CN,zh;q=0.9")
+//                .header("Cache-Control", "max-age=0")
+//                .header("Connection", "keep-alive")
+//                .header("Host", "www.xbiquge.la")
+//                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
+//        Element elementx1 =  conn.execute().parse().body();
+//        String allurl =  elementx1.select("div .bottem1").get(0).getElementsByTag("a").get(2).attr("href");
+//        Element elementx2 = nextPage2(allurl);
+//        Elements elementsx3 =  elementx2.select("div #list").get(0).getElementsByTag("dl").get(0).getElementsByTag("dd");
+//        for(Element a : elementsx3){
+//            stringRedisTemplate.opsForList().leftPush(bookname,a.getElementsByTag("a").text());
+//            stringRedisTemplate.opsForList().leftPush(bookname+"url",headerurl+a.getElementsByTag("a").attr("href"));
+//            Allpages allpages = new Allpages();
+//            allpages.titlename = a.getElementsByTag("a").text();
+//            allpages.pagesurl = headerurl+a.getElementsByTag("a").attr("href");
+//           list.add(allpages);
+//        }
+//        return list;
+//    }
 
 }
